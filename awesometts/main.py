@@ -64,8 +64,8 @@ for i in range(len(modulesfiles)):
 file_max_length = 255 # Max filename length for Unix
 
 
-
-
+without_sound = re.compile('^(.+?)(?: \[sound:.+?\.mp3\])?$')
+without_suffixes = re.compile('^(.+?)(?:, ?[\xa8¨-]{0,2}(?:\\S{1,3})?)?$')
 
 ######## utils
 def get_language_id(language_code):
@@ -211,13 +211,13 @@ def generate_audio_files(factIds, frm, service, srcField_name, dstField_name):
 			note.flush()
 			continue
 				
-		mw.progress.update(label="Generating MP3 files...\n%s of %s\n%s" % (c+1, nelements,note[srcField_name]))
-
 		if note[srcField_name] == '' or note[srcField_name].isspace(): #check if the field is blank
 			note.flush()
 			continue
 		
-		filename = TTS_service[service]['record'](frm, note[srcField_name])
+		value = without_suffixes.match(without_sound.match(stripHTML(note[srcField_name])).group(1)).group(1)
+		mw.progress.update(label="Generating MP3 files...\n%s of %s\n%s" % (c+1, nelements,value))	
+		filename = TTS_service[service]['record'](frm, value)
 		
 		if frm.radioOverwrite.isChecked():
 			if frm.checkBoxSndTag.isChecked():
@@ -225,11 +225,16 @@ def generate_audio_files(factIds, frm, service, srcField_name, dstField_name):
 			else:
 				note[dstField_name] = filename
 		else:
-			note[dstField_name] += ' [sound:'+ filename +']'
+			value = note[dstField_name]
+			pos = value.find(' [sound:')
+			if pos > -1:
+				posEnd = value.find(']', pos)
+				note[dstField_name] = value[0:pos+8] + filename + value[posEnd:]
+			else:
+				note[dstField_name] += ' [sound:'+ filename +']'
 		note.flush()
 		
 	return returnval
-
 
 def onGenerate(self):
 	global TTS_language, dstField, srcField, serviceField
@@ -411,4 +416,5 @@ def ATTS_OnAnswer(self):
 Reviewer._keyHandler = wrap(Reviewer._keyHandler, newKeyHandler, "before")
 Reviewer._showQuestion = wrap(Reviewer._showQuestion, ATTS_OnQuestion, "after")
 Reviewer._showAnswer  = wrap(Reviewer._showAnswer, ATTS_OnAnswer, "after")
+
 
